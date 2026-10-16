@@ -108,6 +108,11 @@ class Ekran:
     def geri(self) -> None:
         self.adb.kabuk("input", "keyevent", "4")
 
+    def _yabanci_onde(self, paket: str) -> bool:
+        # Odak boşsa veya "Splash Screen" gibi geçiş penceresiyse (ayrıştırılamaz) Geri'ye basmak açılışı bozar
+        odak = self.odak()
+        return bool(odak) and not odak.startswith(paket + "/")
+
     def bekle(self, secici: Secici, zaman_asimi: float, *,
               kosul: Callable[[list[Oge]], bool] | None = None,
               beklenen_paket: str | None = None, aralik: float = 1.0) -> Oge:
@@ -125,7 +130,7 @@ class Ekran:
                     log.info("Açılır pencere kapatılıyor: %s", kapatici)
                     self.dokun(kapatici)
                     engel += 1
-                elif beklenen_paket and not self.odak().startswith(beklenen_paket + "/"):
+                elif beklenen_paket and self._yabanci_onde(beklenen_paket):
                     log.info("Başka bir uygulama önde, Geri basılıyor")
                     self.geri()
                     engel += 1

@@ -51,6 +51,16 @@ def test_kendi_paketindeyken_geri_basmaz():
     assert "input keyevent 4" not in adb.cagrilar
 
 
+@pytest.mark.parametrize("odak", [
+    "  mCurrentFocus=Window{1 u0 Splash Screen com.vicman.toonmeapp}",  # soğuk açılış (gerçek cihazda görüldü)
+    "  mCurrentFocus=null",
+])
+def test_odak_belirsizken_geri_basmaz(odak):
+    adb = SahteAdb({"dumpsys window": [odak]}, ekranlar=["<hierarchy/>", F("sonuc.xml")])
+    ekran(adb).bekle(Secici(kimlik="more"), 10, beklenen_paket="com.vicman.toonmeapp")
+    assert "input keyevent 4" not in adb.cagrilar
+
+
 def test_en_fazla_uc_engel():
     adb = SahteAdb(ekranlar=[F("reklam.xml")])
     with pytest.raises(EkranZamanAsimi):

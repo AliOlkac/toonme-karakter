@@ -49,8 +49,11 @@ def calistir(ekran: Ekran, adb, sablon_url: str, isleme_zaman_asimi: float) -> s
     # Temiz bir ToonMe süreciyle başla: aynı süreçte önceden kaydedilmiş bir sonucu ToonMe tekrar kaydetmiyor
     adb.kabuk("am", "force-stop", PAKET)
     adb.kabuk("am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", sablon_url, PAKET)
+    # Ana ekranın şablon ızgarasında da list_item_0 ve seçili "All" vardır; orada dokunmak başka bir şablon
+    # açar. Bu yüzden önde gerçekten fotoğraf seçme ekranı olana kadar beklenir.
     try:
-        ekran.bekle(Secici(aciklama="list_item_0"), 30, beklenen_paket=PAKET)
+        ekran.bekle(Secici(aciklama="list_item_0"), 30, beklenen_paket=PAKET,
+                    kosul=lambda ogeler: "PhotoChooserActivity" in ekran.odak())
     except EkranZamanAsimi as h:
         raise AkisHatasi("sablon", f"şablon ekranı açılmadı; ekranda: {gorunen_metinler(h.son_ogeler)[:8]}",
                          h.son_ogeler) from h

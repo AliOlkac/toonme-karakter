@@ -15,8 +15,12 @@ HATA = ('<hierarchy><node text="No faces found" resource-id="com.vicman.toonmeap
         'class="android.widget.TextView" content-desc="" clickable="false" bounds="[0,0][10,10]"/></hierarchy>')
 
 
-def kur(ekranlar, ls=("", "f39d.jpg\n")):
-    adb = SahteAdb({"ls -1 /sdcard/Pictures/ToonMe": list(ls)}, ekranlar=ekranlar)
+SECICI_ODAGI = "  mCurrentFocus=Window{1 u0 com.vicman.toonmeapp/com.vicman.photolab.activities.NewPhotoChooserActivity}"
+ANA_ODAK = "  mCurrentFocus=Window{1 u0 com.vicman.toonmeapp/com.vicman.photolab.activities.portrait.MainActivityTablet}"
+
+
+def kur(ekranlar, ls=("", "f39d.jpg\n"), odaklar=(SECICI_ODAGI,)):
+    adb = SahteAdb({"ls -1 /sdcard/Pictures/ToonMe": list(ls), "dumpsys window": list(odaklar)}, ekranlar=ekranlar)
     s = SahteSaat()
     return adb, Ekran(adb, uyku=s.uyku, saat=s.saat)
 
@@ -41,6 +45,24 @@ def test_her_deneme_toonme_kapatilarak_baslar():
     i_stop = adb.cagrilar.index("am force-stop com.vicman.toonmeapp")
     i_start = next(i for i, c in enumerate(adb.cagrilar) if c.startswith("am start"))
     assert i_stop < i_start
+
+
+def test_sablon_secici_ekrani_beklenir():
+    # ana ekranın şablon ızgarasında da list_item_0 ve seçili "All" var; orada dokunmak başka şablon açar
+    adb, e = kur([F("secici_all.xml"), F("secici_all.xml")] + MUTLU[1:], odaklar=(ANA_ODAK, SECICI_ODAGI))
+    calistir(e, adb, URL, 180)
+    i_start = next(i for i, c in enumerate(adb.cagrilar) if c.startswith("am start"))
+    i_ilk_dokunus = next(i for i, c in enumerate(adb.cagrilar) if c.startswith("input tap"))
+    # odak önce ana ekran, sonra seçici: ilk dokunuştan önce odak en az iki kez sorulmuş olmalı
+    assert adb.cagrilar[i_start:i_ilk_dokunus].count("dumpsys window windows") >= 2
+
+
+def test_secici_ekrani_gelmezse_sablon_hatasi():
+    adb, e = kur([F("secici_all.xml")], odaklar=(ANA_ODAK,))
+    with pytest.raises(AkisHatasi) as h:
+        calistir(e, adb, URL, 180)
+    assert h.value.adim == "sablon"
+    assert not any(c.startswith("input tap") for c in adb.cagrilar)
 
 
 def test_yeni_dosyalarin_sonuncusu_secilir():
