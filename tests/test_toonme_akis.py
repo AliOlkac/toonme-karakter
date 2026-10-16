@@ -7,7 +7,8 @@ from tests.test_ekran_bekle import SahteSaat
 from tests.veri import F
 
 URL = "https://toonme.com/d/48671890"
-MUTLU = [F("secici_recent.xml"), F("secici_recent.xml"), F("kirpma.xml"), F("sonuc.xml"), F("menu.xml"),
+# "Recent" ToonMe'nin kendi geçmişi; galeriyi gösteren "All" seçilir (gerçek cihazda yanlış foto seçilmişti)
+MUTLU = [F("secici_recent.xml"), F("secici_all.xml"), F("kirpma.xml"), F("sonuc.xml"), F("menu.xml"),
          F("kaydet_paylas.xml")]
 DOKUM = "uiautomator dump /data/local/tmp/ui.xml >/dev/null && cat /data/local/tmp/ui.xml"
 HATA = ('<hierarchy><node text="No faces found" resource-id="com.vicman.toonmeapp:id/snackbar_text" '
@@ -27,10 +28,19 @@ def dokunuslar(adb):
 def test_mutlu_yol():
     adb, e = kur(MUTLU)
     assert calistir(e, adb, URL, 180) == "/sdcard/Pictures/ToonMe/f39d.jpg"
-    assert dokunuslar(adb)[0] == "input tap 374 155"  # Recent sekmesi
+    assert dokunuslar(adb)[0] == "input tap 75 155"  # All sekmesi
     assert dokunuslar(adb)[1:4] == ["input tap 332 260", "input tap 1534 750", "input tap 1552 78"]
     assert len(dokunuslar(adb)) == 6  # + Save to device + Download
     assert any(c.startswith("am start") and URL in c for c in adb.cagrilar)
+
+
+def test_her_deneme_toonme_kapatilarak_baslar():
+    # Aynı süreçte daha önce kaydedilmiş bir sonucu ToonMe yeniden kaydetmiyor (gerçek cihazda görüldü)
+    adb, e = kur(MUTLU)
+    calistir(e, adb, URL, 180)
+    i_stop = adb.cagrilar.index("am force-stop com.vicman.toonmeapp")
+    i_start = next(i for i, c in enumerate(adb.cagrilar) if c.startswith("am start"))
+    assert i_stop < i_start
 
 
 def test_yeni_dosyalarin_sonuncusu_secilir():
@@ -44,8 +54,24 @@ def test_web_secicide_all_sekmesi():
     assert dokunuslar(adb)[0] == "input tap 75 155"
 
 
-def test_kirpma_zaman_asimi_adim_adi():
+def test_all_zaten_seciliyse_dokunulmaz():
+    # seçili "All"a tekrar dokunmak albüm menüsünü açar
+    adb, e = kur([F("secici_all.xml")] + MUTLU[1:])
+    calistir(e, adb, URL, 180)
+    assert "input tap 75 155" not in adb.cagrilar
+    assert dokunuslar(adb)[0] == "input tap 332 260"
+
+
+def test_all_secilmeden_foto_secilmez():
     adb, e = kur([F("secici_recent.xml")])
+    with pytest.raises(AkisHatasi) as h:
+        calistir(e, adb, URL, 180)
+    assert h.value.adim == "fotograf"
+    assert "input tap 332 260" not in adb.cagrilar
+
+
+def test_kirpma_zaman_asimi_adim_adi():
+    adb, e = kur([F("secici_recent.xml"), F("secici_all.xml")])
     with pytest.raises(AkisHatasi) as h:
         calistir(e, adb, URL, 180)
     assert h.value.adim == "kirpma"
@@ -82,10 +108,10 @@ def test_toonme_hatasi_tekrar_yok():
 
 def test_tekrarli_bir_kez_yeniden_dener():
     # ilk deneme kırpma ekranı yerine seçici ekranında kalır (20 sn), ikinci deneme mutlu yol
-    takili = [F("secici_recent.xml")] * 23
+    takili = [F("secici_recent.xml")] + [F("secici_all.xml")] * 22
     adb, e = kur(takili + MUTLU, ls=("", "", "f39d.jpg\n"))  # her deneme önce çıktı klasörünü listeler
     assert calistir_tekrarli(e, adb, URL, 180) == "/sdcard/Pictures/ToonMe/f39d.jpg"
-    assert adb.cagrilar.count("am force-stop com.vicman.toonmeapp") == 1
+    assert adb.cagrilar.count("am force-stop com.vicman.toonmeapp") == 2  # her denemenin başında
     assert sum(c.startswith("am start") for c in adb.cagrilar) == 2
 
 

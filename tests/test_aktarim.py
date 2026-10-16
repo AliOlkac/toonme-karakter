@@ -3,8 +3,8 @@ import re
 import pytest
 
 from toonme_karakter.adb import AdbHatasi
-from toonme_karakter.aktarim import (CIKTI_DIZINI, DesteklenmeyenDosya, al, cikti_yolu, dogrula, gonder,
-                                     listele, medya_yolu, temizle)
+from toonme_karakter.aktarim import (CIKTI_DIZINI, DesteklenmeyenDosya, GaleriHatasi, al, cikti_yolu, dogrula,
+                                     gonder, listele, medya_yolu, temizle)
 from tests.sahte import SahteAdb
 
 
@@ -42,8 +42,8 @@ def test_gonder_turkce_yol(tmp_path):
     f = tmp_path / "Masaüstü" / "Çocuk fotoğrafı 1.JPG"
     f.parent.mkdir()
     f.write_bytes(b"x")
-    adb = SahteAdb()
-    uzak = gonder(adb, f, tmp_path / "gecici")
+    adb = SahteAdb({"content query": ["Row: 0 _id=1"]})
+    uzak = gonder(adb, f, tmp_path / "gecici", uyku=lambda sn: None)
     assert re.fullmatch(r"/sdcard/Pictures/ToonMeInput/toonme_[0-9a-f]{32}\.jpg", uzak)
     push = next(c for c in adb.cagrilar if c.startswith("push "))
     assert push.split(" ")[1].isascii()
@@ -76,3 +76,22 @@ def test_temizle_medya_kaydi():
 
 def test_temizle_hata_yutar():
     temizle(SahteAdb({"rm": [AdbHatasi("x")]}), ["/sdcard/a.jpg"])
+
+
+def test_gonder_cekim_tarihini_simdi_yapar(tmp_path):
+    # ToonMe'nin "All" listesi çekim tarihine göre sıralı; eski EXIF tarihli fotoğraf başa gelmeli
+    (f := tmp_path / "a.jpg").write_bytes(b"x")
+    adb = SahteAdb({"content query": ["", "Row: 0 _id=7"]})
+    uzak = gonder(adb, f, tmp_path / "gecici", uyku=lambda sn: None, simdi=lambda: 1800000000.5)
+    sorgular = [c for c in adb.cagrilar if c.startswith("content query")]
+    assert len(sorgular) == 2
+    guncelleme = next(c for c in adb.cagrilar if c.startswith("content update"))
+    assert "datetaken:l:1800000000500" in guncelleme
+    assert f"_data='{medya_yolu(uzak)}'" in guncelleme
+    assert adb.cagrilar.index(guncelleme) > adb.cagrilar.index(sorgular[-1])
+
+
+def test_gonder_galeriye_eklenmezse_hata(tmp_path):
+    (f := tmp_path / "a.jpg").write_bytes(b"x")
+    with pytest.raises(GaleriHatasi):
+        gonder(SahteAdb(), f, tmp_path / "gecici", uyku=lambda sn: None)

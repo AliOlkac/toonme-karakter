@@ -17,6 +17,7 @@ class Oge:
     sinif: str
     tiklanabilir: bool
     sinirlar: tuple[int, int, int, int]
+    secili: bool = False
 
     @property
     def merkez(self) -> tuple[int, int]:
@@ -41,6 +42,7 @@ def ayristir(xml: str) -> list[Oge]:
             sinif=n.get("class", ""),
             tiklanabilir=n.get("clickable") == "true",
             sinirlar=tuple(sayilar),
+            secili=n.get("selected") == "true",
         ))
     return ogeler
 

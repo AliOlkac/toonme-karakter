@@ -18,6 +18,14 @@ class AkisHatasi(Exception):
         self.son_ogeler = son_ogeler
 
 
+HEPSI = Secici(metin="All")
+
+
+def _hepsi_secili(ogeler: list[Oge]) -> bool:
+    hepsi = bul(ogeler, HEPSI)
+    return bool(hepsi and hepsi.secili)
+
+
 def _isleme_bitti(ogeler: list[Oge]) -> bool:
     for o in ogeler:
         if o.kimlik in ("snackbar_text", "message") and o.metin:
@@ -38,6 +46,8 @@ def _bekle_dokun(ekran: Ekran, adim: str, secici: Secici, zaman_asimi: float, **
 def calistir(ekran: Ekran, adb, sablon_url: str, isleme_zaman_asimi: float) -> str:
     once = listele(adb, CIKTI_DIZINI)
 
+    # Temiz bir ToonMe süreciyle başla: aynı süreçte önceden kaydedilmiş bir sonucu ToonMe tekrar kaydetmiyor
+    adb.kabuk("am", "force-stop", PAKET)
     adb.kabuk("am", "start", "-W", "-a", "android.intent.action.VIEW", "-d", sablon_url, PAKET)
     try:
         ekran.bekle(Secici(aciklama="list_item_0"), 30, beklenen_paket=PAKET)
@@ -45,11 +55,12 @@ def calistir(ekran: Ekran, adb, sablon_url: str, isleme_zaman_asimi: float) -> s
         raise AkisHatasi("sablon", f"şablon ekranı açılmadı; ekranda: {gorunen_metinler(h.son_ogeler)[:8]}",
                          h.son_ogeler) from h
 
-    # Bazı şablonlar "Recent", bazıları "Recommended" sekmesiyle açılır; ilk fotoğraf Recent/All'da bizimkidir
-    sekme = bul(ekran.son_ogeler, Secici(metin="Recent")) or bul(ekran.son_ogeler, Secici(metin="All"))
-    if sekme:
-        ekran.dokun(sekme)
-    _bekle_dokun(ekran, "fotograf", Secici(aciklama="list_item_2"), 15)
+    # "Recent" ToonMe'nin kendi geçmişidir; galeriyi (çekim tarihine göre en yeni başta) "All" gösterir.
+    # Seçili "All"a tekrar dokunmak albüm menüsünü açtığı için yalnızca seçili değilse dokunulur.
+    hepsi = bul(ekran.son_ogeler, HEPSI)
+    if hepsi and not hepsi.secili:
+        ekran.dokun(hepsi)
+    _bekle_dokun(ekran, "fotograf", Secici(aciklama="list_item_2"), 15, kosul=_hepsi_secili)
     _bekle_dokun(ekran, "kirpma", Secici(kimlik="next_btn"), 20)
     _bekle_dokun(ekran, "isleme", Secici(kimlik="more"), isleme_zaman_asimi,
                  kosul=_isleme_bitti, beklenen_paket=PAKET)
@@ -73,6 +84,5 @@ def calistir_tekrarli(ekran: Ekran, adb, sablon_url: str, isleme_zaman_asimi: fl
         except AkisHatasi as h:
             if h.adim == "toonme_hatasi" or i == deneme:
                 raise
-            log.warning("Deneme %d başarısız (%s); ToonMe kapatılıp baştan deneniyor", i, h)
-            adb.kabuk("am", "force-stop", PAKET)
+            log.warning("Deneme %d başarısız (%s); baştan deneniyor", i, h)
     raise AssertionError("ulaşılamaz")

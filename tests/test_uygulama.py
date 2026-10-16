@@ -1,12 +1,14 @@
 import pytest
 
 from toonme_karakter import uygulama
-from toonme_karakter.aktarim import DesteklenmeyenDosya
+from toonme_karakter.aktarim import DesteklenmeyenDosya, GaleriHatasi
 from toonme_karakter.ayarlar import Ayarlar
 from toonme_karakter.bluestacks import ADBKapali, BaslatmaZamanAsimi
 from toonme_karakter.toonme_akis import AkisHatasi
 from toonme_karakter.uygulama import isle, kullanici_mesaji, main
 from tests.sahte import SahteAdb
+
+GALERIDE = {"content query": ["Row: 0 _id=1"]}
 
 
 def patlayan(ayarlar):
@@ -21,7 +23,7 @@ def test_desteklenmeyen_dosyada_bluestacks_acilmaz(tmp_path):
 
 def test_basarili_is(tmp_path):
     (f := tmp_path / "foto.jpg").write_bytes(b"x")
-    adb = SahteAdb()
+    adb = SahteAdb(GALERIDE)
     hedef = isle(f, Ayarlar(), hazirla=lambda a: adb, akis=lambda *a: "/sdcard/Pictures/ToonMe/c.jpg",
                  veri=tmp_path / "v")
     assert hedef == tmp_path / "foto_toon.jpg" and hedef.exists()
@@ -39,13 +41,13 @@ def test_akisa_ayarlar_aktarilir(tmp_path):
         return "/sdcard/Pictures/ToonMe/c.jpg"
 
     isle(f, Ayarlar(sablon_url="https://toonme.com/d/1", isleme_zaman_asimi_sn=60),
-         hazirla=lambda a: SahteAdb(), akis=akis, veri=tmp_path / "v")
+         hazirla=lambda a: SahteAdb(GALERIDE), akis=akis, veri=tmp_path / "v")
     assert alinan == [("https://toonme.com/d/1", 60)]
 
 
 def test_hatada_kayit_ve_temizlik(tmp_path):
     (f := tmp_path / "foto.jpg").write_bytes(b"x")
-    adb = SahteAdb()
+    adb = SahteAdb(GALERIDE)
 
     def akis(*a):
         raise AkisHatasi("kirpma", "next_btn bulunamadı", [])
@@ -99,3 +101,7 @@ def test_main_basari_bildirimi(tmp_path, monkeypatch):
     assert main([str(tmp_path / "foto.jpg")]) == 0
     assert bildirimler[0] == ("ToonMe", "İşleniyor: foto.jpg")
     assert bildirimler[-1] == ("Karakter hazır", "foto_toon.jpg", tmp_path / "foto_toon.jpg")
+
+
+def test_mesaj_galeri():
+    assert kullanici_mesaji(GaleriHatasi()) == "Fotoğraf emülatör galerisine eklenemedi."

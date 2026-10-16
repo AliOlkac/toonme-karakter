@@ -5,7 +5,7 @@ import traceback
 from pathlib import Path
 
 from . import aktarim, bluestacks, kurulum, kuyruk, toonme_akis
-from .aktarim import DesteklenmeyenDosya
+from .aktarim import DesteklenmeyenDosya, GaleriHatasi
 from .ayarlar import PROJE_DIZINI, AyarHatasi, Ayarlar, oku, veri_dizini
 from .bildirim import goster
 from .bluestacks import ADBKapali, BaslatmaZamanAsimi
@@ -60,6 +60,8 @@ def kullanici_mesaji(hata: Exception) -> str:
         return "BlueStacks 90 saniyede açılmadı."
     if isinstance(hata, DesteklenmeyenDosya):
         return "Bu dosya türü desteklenmiyor (jpg, png, webp)."
+    if isinstance(hata, GaleriHatasi):
+        return "Fotoğraf emülatör galerisine eklenemedi."
     if isinstance(hata, AkisHatasi):
         return f"ToonMe '{ADIM_ADLARI.get(hata.adim, hata.adim)}' adımında takıldı: {hata.ayrinti}"
     if isinstance(hata, AyarHatasi):

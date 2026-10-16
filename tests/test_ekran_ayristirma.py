@@ -25,6 +25,13 @@ def test_recommended_sekmesinde_all_var():
     assert bul(yukle("secici_recommended.xml"), Secici(metin="All")).merkez == (75, 155)
 
 
+def test_secili_sekme_okunur():
+    recent = yukle("secici_recent.xml")
+    assert bul(recent, Secici(metin="Recent")).secili is True
+    assert bul(recent, Secici(metin="All")).secili is False
+    assert bul(yukle("secici_all.xml"), Secici(metin="All")).secili is True
+
+
 def test_menu_save():
     assert bul(yukle("menu.xml"), Secici(metin="Save to device"))
 
