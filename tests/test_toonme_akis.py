@@ -119,6 +119,15 @@ def test_isleme_progressbar_varken_beklenir():
     assert adb.cagrilar[i_kirpma:i_more].count(DOKUM) == 2
 
 
+def test_gercek_isleniyor_ekraninda_kaydetmeye_gecilmez():
+    # gerçek cihazda işleme ~17 sn sürüyor; bu sırada "Processing…" ve progressBar var, "more" yok
+    adb, e = kur(MUTLU[:3] + [F("isleniyor.xml")] * 3 + MUTLU[3:])
+    calistir(e, adb, URL, 180)
+    i_kirpma = adb.cagrilar.index("input tap 1534 750")
+    i_more = adb.cagrilar.index("input tap 1552 78")
+    assert adb.cagrilar[i_kirpma:i_more].count(DOKUM) == 4
+
+
 def test_toonme_hatasi_tekrar_yok():
     adb, e = kur(MUTLU[:3] + [HATA])
     with pytest.raises(AkisHatasi) as h:
