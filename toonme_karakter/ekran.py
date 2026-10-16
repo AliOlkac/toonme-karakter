@@ -1,7 +1,12 @@
-"""uiautomator dökümünden arayüz öğelerini okuma ve bulma."""
+"""uiautomator dökümünden arayüz öğelerini okuma, bulma ve cihazda öğe bekleme."""
+import logging
 import re
+import time
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -58,3 +63,68 @@ def bul(ogeler: list[Oge], secici: Secici) -> Oge | None:
 
 def gorunen_metinler(ogeler: list[Oge]) -> list[str]:
     return list(dict.fromkeys(o.metin for o in ogeler if o.metin))
+
+
+# Akışın üstüne açılabilen reklam / teklif / puanlama pencerelerinin kapatma öğeleri
+KAPATICILAR = (Secici(kimlik="close-or-skip-button"), Secici(metin="Not now"), Secici(metin="No thanks"),
+               Secici(metin="Skip"), Secici(metin="Close"))
+EN_FAZLA_ENGEL = 3
+# Döküm galeriye düşmesin diye /sdcard yerine /data/local/tmp kullanılır
+DOKUM_KOMUTU = "uiautomator dump /data/local/tmp/ui.xml >/dev/null && cat /data/local/tmp/ui.xml"
+
+
+class EkranZamanAsimi(Exception):
+    def __init__(self, aranan: Secici, son_ogeler: list[Oge]):
+        super().__init__(f"{aranan} bulunamadı")
+        self.aranan = aranan
+        self.son_ogeler = son_ogeler
+
+
+def odak_ayristir(dumpsys: str) -> str:
+    m = re.search(r"mCurrentFocus=Window\{\S+ \S+ ([^}\s]+)\}", dumpsys)
+    return m.group(1) if m else ""
+
+
+class Ekran:
+    def __init__(self, adb, uyku=time.sleep, saat=time.monotonic):
+        self.adb = adb
+        self._uyku = uyku
+        self._saat = saat
+
+    def dok(self) -> list[Oge]:
+        return ayristir(self.adb.kabuk(DOKUM_KOMUTU))
+
+    def odak(self) -> str:
+        return odak_ayristir(self.adb.kabuk("dumpsys", "window", "windows"))
+
+    def dokun(self, oge: Oge) -> None:
+        x, y = oge.merkez
+        self.adb.kabuk("input", "tap", str(x), str(y))
+
+    def geri(self) -> None:
+        self.adb.kabuk("input", "keyevent", "4")
+
+    def bekle(self, secici: Secici, zaman_asimi: float, *,
+              kosul: Callable[[list[Oge]], bool] | None = None,
+              beklenen_paket: str | None = None, aralik: float = 1.0) -> Oge:
+        bitis = self._saat() + zaman_asimi
+        engel = 0
+        while True:
+            ogeler = self.dok()
+            tamam = kosul(ogeler) if kosul else True
+            hedef = bul(ogeler, secici)
+            if hedef and tamam:
+                return hedef
+            if not hedef and engel < EN_FAZLA_ENGEL:
+                kapatici = next((o for s in KAPATICILAR if (o := bul(ogeler, s))), None)
+                if kapatici:
+                    log.info("Açılır pencere kapatılıyor: %s", kapatici)
+                    self.dokun(kapatici)
+                    engel += 1
+                elif beklenen_paket and not self.odak().startswith(beklenen_paket + "/"):
+                    log.info("Başka bir uygulama önde, Geri basılıyor")
+                    self.geri()
+                    engel += 1
+            if self._saat() >= bitis:
+                raise EkranZamanAsimi(secici, ogeler)
+            self._uyku(aralik)
