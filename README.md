@@ -41,6 +41,7 @@ fotoğrafın kendisi çıktı). Sade, beyaz zeminli, tam boy fotoğraflarda sonu
 | Durum | Süre |
 |---|---|
 | BlueStacks açıkken, 1 fotoğraf | ~35–40 sn |
+| BlueStacks kapalıyken, 1 fotoğraf (araç açar) | ~50–100 sn |
 | Aynı anda 3 fotoğraf (sırayla) | ~110 sn |
 
 ## Şablonu değiştirmek

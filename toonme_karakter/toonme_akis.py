@@ -60,10 +60,16 @@ def calistir(ekran: Ekran, adb, sablon_url: str, isleme_zaman_asimi: float) -> s
 
     # "Recent" ToonMe'nin kendi geçmişidir; galeriyi (çekim tarihine göre en yeni başta) "All" gösterir.
     # Seçili "All"a tekrar dokunmak albüm menüsünü açtığı için yalnızca seçili değilse dokunulur.
-    hepsi = bul(ekran.son_ogeler, HEPSI)
-    if hepsi and not hepsi.secili:
-        ekran.dokun(hepsi)
-    _bekle_dokun(ekran, "fotograf", Secici(aciklama="list_item_2"), 15, kosul=_hepsi_secili)
+    # Seçici geç yüklenirse (BlueStacks yeni açıldığında) ilk dokunuş boşa gidebildiği için seçilene kadar yinelenir.
+    def hepsi_secilsin(ogeler: list[Oge]) -> bool:
+        if _hepsi_secili(ogeler):
+            return True
+        if hepsi := bul(ogeler, HEPSI):
+            ekran.dokun(hepsi)
+        return False
+
+    hepsi_secilsin(ekran.son_ogeler)
+    _bekle_dokun(ekran, "fotograf", Secici(aciklama="list_item_2"), 15, kosul=hepsi_secilsin)
     _bekle_dokun(ekran, "kirpma", Secici(kimlik="next_btn"), 20)
     _bekle_dokun(ekran, "isleme", Secici(kimlik="more"), isleme_zaman_asimi,
                  kosul=_isleme_bitti, beklenen_paket=PAKET)

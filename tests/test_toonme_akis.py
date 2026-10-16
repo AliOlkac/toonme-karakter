@@ -84,6 +84,14 @@ def test_all_zaten_seciliyse_dokunulmaz():
     assert dokunuslar(adb)[0] == "input tap 332 260"
 
 
+def test_all_dokunusu_tutmazsa_tekrar_dokunulur():
+    # soğuk açılışta seçici geç yüklenince ilk "All" dokunuşu boşa gitti (gerçek cihazda görüldü)
+    recent = F("secici_recent.xml")
+    adb, e = kur([recent, recent, recent] + MUTLU[1:])
+    assert calistir(e, adb, URL, 180) == "/sdcard/Pictures/ToonMe/f39d.jpg"
+    assert adb.cagrilar.count("input tap 75 155") == 3
+
+
 def test_all_secilmeden_foto_secilmez():
     adb, e = kur([F("secici_recent.xml")])
     with pytest.raises(AkisHatasi) as h:
