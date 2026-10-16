@@ -1,0 +1,7 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+# kullanıcı fotoğrafları ve sonuçları depoya girmez
+*.jpg
+*.jpeg
+*.png
