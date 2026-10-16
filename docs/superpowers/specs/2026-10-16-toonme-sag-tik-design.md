@@ -128,6 +128,5 @@ Her durumda emülatör temizliği (§3 adım 10) `finally` içinde çalışır; 
 
 ## 8. Güvenlik notu
 
-Kurulu ToonMe APK'sı yeniden imzalanmış (imza konusu yalnızca `C=IN`) ve aynı kaynaktan bir reklam yazılımı gelmişti
-(kullanıcı sildi). Kullanıcı bu sürümle devam etmeyi seçti. Araç emülatöre başka bir şey kurmaz ve iş bitince
-fotoğrafları emülatörden siler.
+ToonMe'yi güvenilir bir kaynaktan (Google Play) kurmanız önerilir. Araç emülatöre başka bir uygulama kurmaz ve iş
+bitince fotoğrafları emülatör galerisinden siler.
