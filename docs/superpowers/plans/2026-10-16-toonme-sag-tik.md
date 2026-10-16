@@ -103,7 +103,7 @@ def test_veri_dizini_localappdata(tmp_path, monkeypatch):
   - `bul(ogeler: list[Oge], secici: Secici) -> Oge | None` — ilk eşleşen
   - `gorunen_metinler(ogeler: list[Oge]) -> list[str]` — boş olmayan `metin`ler, sıra korunur, tekrarsız
 
-- [ ] **Step 1: Gerçek dökümleri kopyala** — kaynak `C:\Users\aliol\AppData\Local\Temp\claude\C--Users-aliol-AppData-Roaming-Claude-scratch-workspaces-314d45b9-44b4-4e45-8b04-bfce09ff42c7-ea5a7ca6-acb5-46fa-900c-d0e91ce5ad5a-scratch-2026-10-15-4b3729\04fd1942-075e-4035-a49e-0b98bfb3ffae\scratchpad\snaps\`:
+- [ ] **Step 1: Gerçek dökümleri kopyala** — kaynak: inceleme sırasında BlueStacks'ten alınan dökümler (`snaps\`):
   `p1.xml→secici_recent.xml`, `dl1.xml→secici_recommended.xml`, `p2.xml→kirpma.xml`, `r1.xml→sonuc.xml`, `r2.xml→menu.xml`, `r3.xml→kaydet_paylas.xml`, `s4.xml→reklam.xml` (hedef `tests/fixtures/`).
 
 - [ ] **Step 2: Failing testleri yaz** (`yukle(ad)` yardımcı: fixture'ı okuyup `ayristir`'dan geçirir)
@@ -445,7 +445,7 @@ def test_mesaj_akis(): assert kullanici_mesaji(AkisHatasi("isleme", "zaman aşı
 - Create: `README.md`
 - Modify: gözleme göre `toonme_karakter/toonme_akis.py` (`_isleme_bitti`, sekme seçimi), `toonme_karakter/ekran.py` (`KAPATICILAR`)
 
-Test fotoğrafı: `C:\Users\aliol\AppData\Local\Temp\claude\sc\test1.jpg` (kullanıcının izin verdiği fotoğraf; yalnızca bu testler için).
+Test fotoğrafı: yerel bir test fotoğrafı (yalnızca bu testler için; depoya girmez).
 
 - [ ] **Step 1: Senaryo 1, BlueStacks açıkken** — `Measure-Command { python -m toonme_karakter "<test1.jpg>" }` → çıkış kodu 0; yanında `test1_toon.jpg` (960×1288 civarı) oluşur; sonucu aç ve test fotoğrafındaki kişinin karakteri olduğunu doğrula (spec §7.2: yanlış fotoğraf seçilmediği; emülatörde `DCIM/SharedFolder/foto_4.jpg` var). Yanlış fotoğraf seçildiyse **dur ve kullanıcıya bildir**: spec'teki yedek yol (galeri düğmesi → sistem seçicisi) ayrı bir tasarım kararı gerektirir. Süreyi not et.
 - [ ] **Step 2: Emülatör temiz mi** — `HD-Adb.exe -s 127.0.0.1:5555 shell content query --uri content://media/external/images/media --projection _data` → `ToonMeInput` kaydı yok, yeni ToonMe çıktısı yok.
