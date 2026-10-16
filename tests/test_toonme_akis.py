@@ -1,0 +1,96 @@
+import pytest
+
+from toonme_karakter.ekran import Ekran
+from toonme_karakter.toonme_akis import AkisHatasi, calistir, calistir_tekrarli
+from tests.sahte import SahteAdb
+from tests.test_ekran_bekle import SahteSaat
+from tests.veri import F
+
+URL = "https://toonme.com/d/48671890"
+MUTLU = [F("secici_recent.xml"), F("secici_recent.xml"), F("kirpma.xml"), F("sonuc.xml"), F("menu.xml"),
+         F("kaydet_paylas.xml")]
+DOKUM = "uiautomator dump /data/local/tmp/ui.xml >/dev/null && cat /data/local/tmp/ui.xml"
+HATA = ('<hierarchy><node text="No faces found" resource-id="com.vicman.toonmeapp:id/snackbar_text" '
+        'class="android.widget.TextView" content-desc="" clickable="false" bounds="[0,0][10,10]"/></hierarchy>')
+
+
+def kur(ekranlar, ls=("", "f39d.jpg\n")):
+    adb = SahteAdb({"ls -1 /sdcard/Pictures/ToonMe": list(ls)}, ekranlar=ekranlar)
+    s = SahteSaat()
+    return adb, Ekran(adb, uyku=s.uyku, saat=s.saat)
+
+
+def dokunuslar(adb):
+    return [c for c in adb.cagrilar if c.startswith("input tap")]
+
+
+def test_mutlu_yol():
+    adb, e = kur(MUTLU)
+    assert calistir(e, adb, URL, 180) == "/sdcard/Pictures/ToonMe/f39d.jpg"
+    assert dokunuslar(adb)[0] == "input tap 374 155"  # Recent sekmesi
+    assert dokunuslar(adb)[1:4] == ["input tap 332 260", "input tap 1534 750", "input tap 1552 78"]
+    assert len(dokunuslar(adb)) == 6  # + Save to device + Download
+    assert any(c.startswith("am start") and URL in c for c in adb.cagrilar)
+
+
+def test_yeni_dosyalarin_sonuncusu_secilir():
+    adb, e = kur(MUTLU, ls=("eski.jpg\n", "eski.jpg\nb.jpg\na.jpg\nnot.txt\n"))
+    assert calistir(e, adb, URL, 180) == "/sdcard/Pictures/ToonMe/b.jpg"
+
+
+def test_web_secicide_all_sekmesi():
+    adb, e = kur([F("secici_recommended.xml")] + MUTLU[1:])
+    assert calistir(e, adb, URL, 180) == "/sdcard/Pictures/ToonMe/f39d.jpg"
+    assert dokunuslar(adb)[0] == "input tap 75 155"
+
+
+def test_kirpma_zaman_asimi_adim_adi():
+    adb, e = kur([F("secici_recent.xml")])
+    with pytest.raises(AkisHatasi) as h:
+        calistir(e, adb, URL, 180)
+    assert h.value.adim == "kirpma"
+    assert "Recent" in h.value.ayrinti
+
+
+def test_cikti_gelmezse_adim_adi():
+    adb, e = kur(MUTLU, ls=("",))
+    with pytest.raises(AkisHatasi) as h:
+        calistir(e, adb, URL, 180)
+    assert h.value.adim == "cikti"
+
+
+def test_isleme_progressbar_varken_beklenir():
+    isleniyor = F("sonuc.xml").replace(
+        "</hierarchy>",
+        '<node text="" resource-id="" class="android.widget.ProgressBar" content-desc="" clickable="false" '
+        'bounds="[700,400][900,600]"/></hierarchy>')
+    adb, e = kur(MUTLU[:3] + [isleniyor, F("sonuc.xml")] + MUTLU[4:])
+    calistir(e, adb, URL, 180)
+    i_kirpma = adb.cagrilar.index("input tap 1534 750")
+    i_more = adb.cagrilar.index("input tap 1552 78")
+    assert adb.cagrilar[i_kirpma:i_more].count(DOKUM) == 2
+
+
+def test_toonme_hatasi_tekrar_yok():
+    adb, e = kur(MUTLU[:3] + [HATA])
+    with pytest.raises(AkisHatasi) as h:
+        calistir_tekrarli(e, adb, URL, 180)
+    assert h.value.adim == "toonme_hatasi"
+    assert "No faces found" in h.value.ayrinti
+    assert sum(c.startswith("am start") for c in adb.cagrilar) == 1
+
+
+def test_tekrarli_bir_kez_yeniden_dener():
+    # ilk deneme kırpma ekranı yerine seçici ekranında kalır (20 sn), ikinci deneme mutlu yol
+    takili = [F("secici_recent.xml")] * 23
+    adb, e = kur(takili + MUTLU, ls=("", "", "f39d.jpg\n"))  # her deneme önce çıktı klasörünü listeler
+    assert calistir_tekrarli(e, adb, URL, 180) == "/sdcard/Pictures/ToonMe/f39d.jpg"
+    assert adb.cagrilar.count("am force-stop com.vicman.toonmeapp") == 1
+    assert sum(c.startswith("am start") for c in adb.cagrilar) == 2
+
+
+def test_tekrarli_ikinci_hatada_firlatir():
+    adb, e = kur([F("secici_recent.xml")])
+    with pytest.raises(AkisHatasi):
+        calistir_tekrarli(e, adb, URL, 180)
+    assert sum(c.startswith("am start") for c in adb.cagrilar) == 2

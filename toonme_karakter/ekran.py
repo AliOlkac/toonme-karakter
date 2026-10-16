@@ -88,11 +88,13 @@ def odak_ayristir(dumpsys: str) -> str:
 class Ekran:
     def __init__(self, adb, uyku=time.sleep, saat=time.monotonic):
         self.adb = adb
-        self._uyku = uyku
-        self._saat = saat
+        self.uyku = uyku
+        self.saat = saat
+        self.son_ogeler: list[Oge] = []
 
     def dok(self) -> list[Oge]:
-        return ayristir(self.adb.kabuk(DOKUM_KOMUTU))
+        self.son_ogeler = ayristir(self.adb.kabuk(DOKUM_KOMUTU))
+        return self.son_ogeler
 
     def odak(self) -> str:
         return odak_ayristir(self.adb.kabuk("dumpsys", "window", "windows"))
@@ -107,7 +109,7 @@ class Ekran:
     def bekle(self, secici: Secici, zaman_asimi: float, *,
               kosul: Callable[[list[Oge]], bool] | None = None,
               beklenen_paket: str | None = None, aralik: float = 1.0) -> Oge:
-        bitis = self._saat() + zaman_asimi
+        bitis = self.saat() + zaman_asimi
         engel = 0
         while True:
             ogeler = self.dok()
@@ -125,6 +127,6 @@ class Ekran:
                     log.info("Başka bir uygulama önde, Geri basılıyor")
                     self.geri()
                     engel += 1
-            if self._saat() >= bitis:
+            if self.saat() >= bitis:
                 raise EkranZamanAsimi(secici, ogeler)
-            self._uyku(aralik)
+            self.uyku(aralik)
