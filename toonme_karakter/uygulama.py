@@ -14,6 +14,7 @@ from .toonme_akis import PAKET, AkisHatasi
 
 log = logging.getLogger(__name__)
 
+ISARET = "/data/local/tmp/toonme_is.isaret"
 ADIM_ADLARI = {"sablon": "şablonu açma", "fotograf": "fotoğraf seçme", "kirpma": "kırpma", "isleme": "işleme",
                "kaydetme": "kaydetme", "cikti": "sonucu bulma", "toonme_hatasi": "ToonMe"}
 
@@ -37,6 +38,8 @@ def isle(foto: Path, ayarlar: Ayarlar, *, hazirla=bluestacks.hazirla, akis=toonm
     adb = uzak_girdi = uzak_cikti = None
     try:
         adb = hazirla(ayarlar)
+        # iş sırasında oluşan çıktıları sonra kesin bulabilmek için (kullanıcının eski ToonMe kayıtlarına dokunmadan)
+        adb.kabuk("touch", ISARET)
         uzak_girdi = aktarim.gonder(adb, foto, veri / "gecici")
         uzak_cikti = akis(Ekran(adb), adb, ayarlar.sablon_url, ayarlar.isleme_zaman_asimi_sn)
         return aktarim.al(adb, uzak_cikti, aktarim.cikti_yolu(foto), veri / "gecici")
@@ -46,11 +49,24 @@ def isle(foto: Path, ayarlar: Ayarlar, *, hazirla=bluestacks.hazirla, akis=toonm
         raise
     finally:
         if adb:
-            aktarim.temizle(adb, [y for y in (uzak_girdi, uzak_cikti) if y])
-            try:
-                adb.kabuk("am", "force-stop", PAKET)
-            except Exception as h:
-                log.warning("ToonMe kapatılamadı: %s", h)
+            emulatoru_temizle(adb, {y for y in (uzak_girdi, uzak_cikti) if y})
+
+
+def emulatoru_temizle(adb, bilinen: set[str]) -> None:
+    """Bilinen girdi/çıktıya ek olarak: girdi klasörü tamamen aracındır; çıktı klasöründen yalnızca bu iş
+    sırasında oluşanlar silinir. Hangi adımda hata olursa olsun fotoğraflar emülatörde kalmaz."""
+    try:
+        yeni = adb.kabuk(f"find {aktarim.CIKTI_DIZINI} -type f -newer {ISARET} 2>/dev/null; true")
+    except Exception as h:
+        log.warning("Yeni çıktılar listelenemedi: %s", h)
+        yeni = ""
+    yollar = (bilinen | aktarim.listele(adb, aktarim.GIRDI_DIZINI)
+              | {y.strip() for y in yeni.splitlines() if y.strip()})
+    aktarim.temizle(adb, sorted(yollar))
+    try:
+        adb.kabuk("am", "force-stop", PAKET)
+    except Exception as h:
+        log.warning("ToonMe kapatılamadı: %s", h)
 
 
 def kullanici_mesaji(hata: Exception) -> str:
@@ -94,7 +110,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     hata_var = False
-    for yol in map(Path, argv):
+    for yol in (Path(a).resolve() for a in argv):
         goster("ToonMe", f"İşleniyor: {yol.name}")
         try:
             with kuyruk.sira(veri / "kuyruk.kilit"):

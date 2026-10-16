@@ -1,6 +1,6 @@
 # ToonMe Sağ Tık Aracı — Tasarım
 
-Tarih: 2026-10-16 · Durum: Onay bekliyor
+Tarih: 2026-10-16 · Durum: Onaylandı, uygulandı (gerçek cihaz bulgularıyla güncellendi)
 
 ## 1. Amaç
 
@@ -35,24 +35,23 @@ ToonMe'ye hiç dokunmadan orijinalin yanına `<ad>_toon.jpg` olarak kaydedilir.
 | # | Adım | Nasıl | Beklenen ekran / öğe |
 |---|---|---|---|
 | 1 | Hazırlık | BlueStacks süreci yoksa başlat; `adb connect`; `getprop sys.boot_completed` = 1 bekle | — |
-| 2 | Fotoğrafı gönder | `adb push` → `/sdcard/Pictures/ToonMeInput/<benzersiz>.jpg`; `am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://…` | — |
-| 3 | Şablonu aç | `am start -W -a android.intent.action.VIEW -d https://toonme.com/d/<şablon_kimliği> com.vicman.toonmeapp` | `NewPhotoChooserActivity` veya `WebPhotoChooserActivity` (şablona göre değişiyor) |
-| 4 | Fotoğrafı seç | Metni `Recent` olan sekmeye dokun (bazı şablonlar `Recommended` ile açılıyor); `list_item_2` (kamera ve galeri düğmelerinden sonraki ilk fotoğraf) | `CropNRotateActivity` |
+| 2 | Fotoğrafı gönder | `adb push` → `/sdcard/Pictures/ToonMeInput/<benzersiz>.jpg`; `am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://…`; MediaStore kaydı oluşunca `datetaken` = max(şimdi, galerideki en büyük + 1) | — |
+| 3 | Şablonu aç | `am force-stop` (temiz süreç) + `am start -W -a android.intent.action.VIEW -d https://toonme.com/d/<şablon_kimliği> com.vicman.toonmeapp`; odak `…PhotoChooserActivity` olana kadar bekle | `NewPhotoChooserActivity` veya `WebPhotoChooserActivity` (şablona göre değişiyor) |
+| 4 | Fotoğrafı seç | Metni `All` olan sekme seçili değilse ona dokun (seçilene kadar yinele; seçiliyken dokunmak albüm menüsünü açar); `All` seçiliyken `list_item_2` (kamera ve galeri düğmelerinden sonraki ilk fotoğraf) | `CropNRotateActivity` |
 | 5 | Kırpmayı geç | `resource-id …/next_btn` (desc "Edit photo"); varsayılan kırpma fotoğrafın tamamı | `ResultActivity` |
 | 6 | Sonucu bekle | İşleme `ResultActivity` içinde yapılır; ilerleme göstergesi kaybolana ve `…/more` tıklanabilir olana kadar bekle (en çok 3 dk) | Sonuç görseli |
 | 7 | Kaydet | `…/more` → metni `Save to device` → `ShareActivity` ("Save & Share") → metni `Download` | — |
 | 8 | Çıktıyı bul | `Pictures/ToonMe/` klasörünün işlem öncesi/sonrası listesi karşılaştırılır; yeni `.jpg` sonuçtur (test: 960×1288) | — |
 | 9 | Bilgisayara al | `adb pull` → orijinalin yanına `<ad>_toon.jpg`; varsa `<ad>_toon (2).jpg` … (üzerine yazmaz) | — |
-| 10 | Temizlik | Girdi ve çıktı dosyalarını sil + MediaStore kaydını kaldır (`content delete --uri content://media/external/file --where "_data='/storage/emulated/0/…'"`); `am force-stop com.vicman.toonmeapp` | — |
+| 10 | Temizlik | `finally` içinde: bilinen girdi/çıktı + `ToonMeInput` klasörünün tamamı + `ToonMe` klasöründe iş başındaki işaret dosyasından (`/data/local/tmp/toonme_is.isaret`) yeni olanlar silinir, MediaStore kaydı kaldırılır (`content delete --uri content://media/external/file --where "_data='/storage/emulated/0/…'"`); `am force-stop com.vicman.toonmeapp` | — |
 
 Notlar:
 - Öğeler koordinatla değil `resource-id` / metin / `content-desc` ile bulunur. Koordinat yalnızca bulunan öğenin
   `bounds` merkezinden hesaplanır.
-- Ekran dökümü `/data/local/tmp/ui.xml`'e, ekran görüntüsü `adb exec-out screencap -p` ile alınır; böylece emülatör
-  galerisine hiçbir yardımcı dosya düşmez (incelemede `/sdcard/_s.png`'nin galeride göründüğü görüldü).
-- Galeri her iş sonunda temizlendiği için "Recent" sekmesindeki ilk fotoğraf her zaman bizimkidir.
-  BlueStacks'in kendi paylaşım klasöründeki (`DCIM/SharedFolder`) dosyalar sırayı bozarsa (uygulamada doğrulanacak),
-  yedek yol: galeri düğmesi (`list_item_1`) → sistem seçicisinde dosya adına göre seçim.
+- Ekran dökümü `/data/local/tmp/ui.xml`'e (her dökümden önce eski dosya silinerek), ekran görüntüsü `adb exec-out screencap -p`
+  ile alınır; böylece emülatör galerisine hiçbir yardımcı dosya düşmez ve başarısız döküm eski ekran sanılmaz.
+- "Recent" sekmesi galeri değil, ToonMe'nin kendi geçmişidir (eski/silinmiş fotoğrafları gösterir). Galeriyi `All` gösterir ve
+  **çekim tarihine (datetaken)** göre sıralar; bu yüzden adım 2'de bizim fotoğrafın çekim tarihi en yeni yapılır.
 - Hareketli Ana Sayfa (`uiautomator dump` → "could not get idle state") bağlantı sayesinde hiç açılmaz.
 
 ## 4. Bileşenler
@@ -117,11 +116,15 @@ Her durumda emülatör temizliği (§3 adım 10) `finally` içinde çalışır; 
   kapalıyken tek fotoğraf. Her birinde sonuç dosyası, süre ve emülatörün temiz kaldığı doğrulanır. İşleme süresi
   burada ölçülüp README'ye yazılır.
 
-## 7. Uygulamada doğrulanacak açık noktalar
+## 7. Uygulamada doğrulanan noktalar (çözüldü)
 
-1. İşlemenin bittiğini en güvenilir şekilde gösteren işaret (§3 adım 6).
-2. "Recent" sıralamasının `DCIM/SharedFolder` dosyalarından etkilenip etkilenmediği.
-3. Sık görülen açılır pencerelerin metinleri/kimlikleri (gözlendikçe listeye eklenir).
+1. İşleme bitişi: işlem ~17–20 sn sürüyor; bu sırada "Processing…" + `progressBar` var, `more` yok → `more` beklemek yeterli
+   (gerçek döküm `tests/fixtures/isleniyor.xml` ile sabitlendi).
+2. Fotoğraf seçimi: "Recent" ToonMe geçmişi olduğundan yanlış fotoğraf seçiliyordu → `All` + `datetaken` (bkz. §3).
+3. Diğer gerçek cihaz bulguları: aynı ToonMe sürecinde önceden kaydedilen sonuç yeniden kaydedilmiyor (her deneme
+   `force-stop` ile başlar); soğuk açılışta odak "Splash Screen" olduğundan Geri'ye basılmaz; seçici geç yüklenirse
+   `All` dokunuşu yinelenir.
+4. ToonMe aynı fotoğraftan her seferinde farklı güçte sonuç üretebiliyor; araç ToonMe'nin gösterdiğini aynen kaydeder.
 
 ## 8. Güvenlik notu
 

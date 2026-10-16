@@ -17,7 +17,7 @@ class SahteAdb:
     def kabuk(self, *arg, zaman_asimi=30):
         komut = " ".join(arg)
         self.cagrilar.append(komut)
-        if komut.startswith("uiautomator dump"):
+        if "uiautomator dump" in komut:
             return self._siradaki("__ekran__", self.ekranlar) if self.ekranlar else ""
         for anahtar, liste in self.yanitlar.items():
             if komut.startswith(anahtar) and liste:

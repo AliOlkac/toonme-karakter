@@ -83,7 +83,7 @@ def test_gonder_cekim_tarihini_simdi_yapar(tmp_path):
     (f := tmp_path / "a.jpg").write_bytes(b"x")
     adb = SahteAdb({"content query": ["", "Row: 0 _id=7"]})
     uzak = gonder(adb, f, tmp_path / "gecici", uyku=lambda sn: None, simdi=lambda: 1800000000.5)
-    sorgular = [c for c in adb.cagrilar if c.startswith("content query")]
+    sorgular = [c for c in adb.cagrilar if c.startswith("content query") and "--projection _id" in c]
     assert len(sorgular) == 2
     guncelleme = next(c for c in adb.cagrilar if c.startswith("content update"))
     assert "datetaken:l:1800000000500" in guncelleme
@@ -95,3 +95,14 @@ def test_gonder_galeriye_eklenmezse_hata(tmp_path):
     (f := tmp_path / "a.jpg").write_bytes(b"x")
     with pytest.raises(GaleriHatasi):
         gonder(SahteAdb(), f, tmp_path / "gecici", uyku=lambda sn: None)
+
+
+def test_gonder_gelecek_tarihli_fotografin_onune_gecer(tmp_path):
+    # galeride çekim tarihi "şimdi"den ileri bir fotoğraf varsa bizimki yine en yeni olmalı
+    (f := tmp_path / "a.jpg").write_bytes(b"x")
+    adb = SahteAdb({"content query --uri content://media/external/images/media --projection datetaken":
+                    ["Row: 0 datetaken=4102444800000\nRow: 1 datetaken=1792128061000"],
+                    "content query": ["Row: 0 _id=7"]})
+    gonder(adb, f, tmp_path / "gecici", uyku=lambda sn: None, simdi=lambda: 1800000000.0)
+    guncelleme = next(c for c in adb.cagrilar if c.startswith("content update"))
+    assert "datetaken:l:4102444800001" in guncelleme

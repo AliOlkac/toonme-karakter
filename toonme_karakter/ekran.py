@@ -72,7 +72,10 @@ KAPATICILAR = (Secici(kimlik="close-or-skip-button"), Secici(metin="Not now"), S
                Secici(metin="Skip"), Secici(metin="Close"))
 EN_FAZLA_ENGEL = 3
 # Döküm galeriye düşmesin diye /sdcard yerine /data/local/tmp kullanılır
-DOKUM_KOMUTU = "uiautomator dump /data/local/tmp/ui.xml >/dev/null && cat /data/local/tmp/ui.xml"
+# uiautomator "could not get idle state" verip yine 0 ile çıkabiliyor; önceki dosya canlı ekran sanılmasın diye
+# önce silinir. Döküm alınamazsa çıktı boş kalır ve ayristir() [] döndürür (çağıranlar beklemeye devam eder).
+DOKUM_KOMUTU = ("rm -f /data/local/tmp/ui.xml; uiautomator dump /data/local/tmp/ui.xml >/dev/null; "
+                "cat /data/local/tmp/ui.xml 2>/dev/null; true")
 
 
 class EkranZamanAsimi(Exception):

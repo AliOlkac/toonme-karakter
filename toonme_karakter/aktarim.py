@@ -1,5 +1,6 @@
 """Bilgisayar ile emülatör arasında dosya taşıma ve emülatörü temiz bırakma."""
 import logging
+import re
 import shutil
 import time
 import uuid
@@ -69,8 +70,13 @@ def _en_yeni_yap(adb, uzak: str, uyku, simdi) -> None:
     kosul = f"--where \"_data='{medya_yolu(uzak)}'\""
     for _ in range(GALERI_DENEME):
         if "Row:" in adb.kabuk(f"content query --uri content://media/external/images/media --projection _id {kosul}"):
+            tarihler = re.findall(r"datetaken=(\d+)", adb.kabuk(
+                "content query --uri content://media/external/images/media --projection datetaken "
+                "--sort \"datetaken DESC\""))
+            # yanlış saatli bir kameradan gelen "gelecek tarihli" fotoğraf da bizimkinin önüne geçmesin
+            deger = max([int(simdi() * 1000)] + [int(t) + 1 for t in tarihler])
             adb.kabuk(f"content update --uri content://media/external/images/media "
-                      f"--bind datetaken:l:{int(simdi() * 1000)} {kosul}")
+                      f"--bind datetaken:l:{deger} {kosul}")
             return
         uyku(0.5)
     raise GaleriHatasi(uzak)

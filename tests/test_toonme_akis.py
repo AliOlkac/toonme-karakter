@@ -10,7 +10,7 @@ URL = "https://toonme.com/d/48671890"
 # "Recent" ToonMe'nin kendi geçmişi; galeriyi gösteren "All" seçilir (gerçek cihazda yanlış foto seçilmişti)
 MUTLU = [F("secici_recent.xml"), F("secici_all.xml"), F("kirpma.xml"), F("sonuc.xml"), F("menu.xml"),
          F("kaydet_paylas.xml")]
-DOKUM = "uiautomator dump /data/local/tmp/ui.xml >/dev/null && cat /data/local/tmp/ui.xml"
+from toonme_karakter.ekran import DOKUM_KOMUTU as DOKUM  # noqa: E402
 HATA = ('<hierarchy><node text="No faces found" resource-id="com.vicman.toonmeapp:id/snackbar_text" '
         'class="android.widget.TextView" content-desc="" clickable="false" bounds="[0,0][10,10]"/></hierarchy>')
 

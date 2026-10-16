@@ -1,6 +1,6 @@
 import pytest
 
-from toonme_karakter.ekran import Ekran, EkranZamanAsimi, Secici, bul, odak_ayristir
+from toonme_karakter.ekran import DOKUM_KOMUTU, Ekran, EkranZamanAsimi, Secici, bul, odak_ayristir
 from tests.sahte import SahteAdb
 from tests.veri import F
 
@@ -28,7 +28,7 @@ def test_hemen_bulur():
 def test_dok_tek_kabuk_cagrisi():
     adb = SahteAdb(ekranlar=[F("sonuc.xml")])
     ekran(adb).dok()
-    assert adb.cagrilar == ["uiautomator dump /data/local/tmp/ui.xml >/dev/null && cat /data/local/tmp/ui.xml"]
+    assert adb.cagrilar == [DOKUM_KOMUTU]
 
 
 def test_reklami_kapatip_bulur():
@@ -85,7 +85,7 @@ def test_kosul_her_turda():
     adb = SahteAdb(ekranlar=[F("sonuc.xml")])
     assert ekran(adb).bekle(Secici(kimlik="more"), 10, kosul=kosul)
     assert len(cagri) == 2
-    assert adb.cagrilar.count("uiautomator dump /data/local/tmp/ui.xml >/dev/null && cat /data/local/tmp/ui.xml") == 2
+    assert adb.cagrilar.count(DOKUM_KOMUTU) == 2
 
 
 def test_kosul_firlatirsa_yayilir():
@@ -108,3 +108,9 @@ def test_odak_ayristir():
              "com.vicman.photolab.activities.NewPhotoChooserActivity}")
     assert odak_ayristir(metin) == "com.vicman.toonmeapp/com.vicman.photolab.activities.NewPhotoChooserActivity"
     assert odak_ayristir("mCurrentFocus=null") == ""
+
+
+def test_dokum_eski_dosyayi_once_siler():
+    # uiautomator "could not get idle state" verip 0 ile çıkabiliyor; eski ui.xml canlı ekran sanılmamalı
+    assert DOKUM_KOMUTU.startswith("rm -f /data/local/tmp/ui.xml;")
+    assert "&&" not in DOKUM_KOMUTU and DOKUM_KOMUTU.endswith("; true")

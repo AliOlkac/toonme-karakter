@@ -63,7 +63,9 @@ sağ üstteki paylaş simgesi → **Copy URL**. `?utm_source=app` gibi ekler sor
 2. ToonMe şablon bağlantısıyla (`toonme.com/d/<kimlik>`) doğrudan şablonun fotoğraf seçme ekranında açılır.
 3. **All** sekmesindeki ilk fotoğraf (bizimki) seçilir, kırpma geçilir, işleme ("Processing…") beklenir.
 4. ⋮ → *Save to device* → *Download* ile sonuç kaydedilir ve bilgisayara alınır.
-5. Girdi ve çıktı emülatörden silinir, ToonMe kapatılır; fotoğraflarınız emülatörde birikmez.
+5. Girdi ve çıktı emülatörün galerisinden silinir (hata olsa bile), ToonMe kapatılır.
+   Not: ToonMe kullandığı fotoğrafların kopyalarını kendi **Recent** geçmişinde tutar; bunu araç silemez,
+   isterseniz ToonMe içinden temizleyebilirsiniz.
 
 Arayüz öğeleri koordinatla değil kimlik/metinle bulunur; araya giren reklam/teklif pencereleri kapatılır.
 

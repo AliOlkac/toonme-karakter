@@ -1,6 +1,7 @@
 import pytest
 
 from toonme_karakter import uygulama
+from toonme_karakter.adb import AdbHatasi
 from toonme_karakter.aktarim import DesteklenmeyenDosya, GaleriHatasi
 from toonme_karakter.ayarlar import Ayarlar
 from toonme_karakter.bluestacks import ADBKapali, BaslatmaZamanAsimi
@@ -105,3 +106,37 @@ def test_main_basari_bildirimi(tmp_path, monkeypatch):
 
 def test_mesaj_galeri():
     assert kullanici_mesaji(GaleriHatasi()) == "Fotoğraf emülatör galerisine eklenemedi."
+
+
+def test_yukleme_sonrasi_hatada_girdi_yine_silinir(tmp_path):
+    # push başarılı, sonraki adım (galeri taraması) hata veriyor: fotoğraf emülatörde kalmamalı
+    (f := tmp_path / "foto.jpg").write_bytes(b"x")
+    adb = SahteAdb({"am broadcast": [AdbHatasi("broadcast hatası")],
+                    "ls -1 /sdcard/Pictures/ToonMeInput": ["toonme_abc.jpg\n"]})
+    with pytest.raises(AdbHatasi):
+        isle(f, Ayarlar(), hazirla=lambda a: adb, akis=lambda *a: "x", veri=tmp_path / "v")
+    assert "rm -f /sdcard/Pictures/ToonMeInput/toonme_abc.jpg" in " ".join(adb.cagrilar)
+
+
+def test_gec_olusan_cikti_da_silinir(tmp_path):
+    # işten sonra çıktı klasöründe yeni olan her şey (geç gelen önceki deneme dosyası dahil) silinir
+    (f := tmp_path / "foto.jpg").write_bytes(b"x")
+    # yalnızca iş başında konan işaretten yeni dosyalar silinir; kullanıcının eski ToonMe kayıtları kalır
+    adb = SahteAdb({"find /sdcard/Pictures/ToonMe": ["/sdcard/Pictures/ToonMe/c.jpg\n/sdcard/Pictures/ToonMe/gec.jpg\n"],
+                    **GALERIDE})
+    isle(f, Ayarlar(), hazirla=lambda a: adb, akis=lambda *a: "/sdcard/Pictures/ToonMe/c.jpg", veri=tmp_path / "v")
+    hepsi = " ".join(adb.cagrilar)
+    i_isaret = next(i for i, c in enumerate(adb.cagrilar) if c.startswith("touch /data/local/tmp/"))
+    i_push = next(i for i, c in enumerate(adb.cagrilar) if c.startswith("push "))
+    assert i_isaret < i_push
+    assert "rm -f /sdcard/Pictures/ToonMe/gec.jpg" in hepsi and "rm -f /sdcard/Pictures/ToonMe/c.jpg" in hepsi
+
+
+def test_main_goreli_yol(tmp_path, monkeypatch):
+    # komut satırından "foto.jpg" verildiğinde sonuç kaydedilir ve başarı bildirimi gösterilebilmeli
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    from toonme_karakter.bildirim import toast_xml
+    monkeypatch.setattr(uygulama, "goster", lambda *a: toast_xml(*a))
+    monkeypatch.setattr(uygulama, "isle", lambda foto, ayarlar, **kw: foto.with_name("foto_toon.jpg"))
+    assert main(["foto.jpg"]) == 0
